@@ -1,0 +1,53 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Cost Anomaly Detection test
+
+Resources:
+  AnomalyTestSNSTopic:
+    Type: AWS::SNS::Topic
+
+  AnomalyTestSNSTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Id: SNSTopicPolicy
+        Version: '2012-10-17'
+        Statement:
+          - Sid: Default_Statement
+            Effect: Allow
+            Principal:
+              AWS: "*"
+            Action: 
+              - sns:Publish
+            Resource: !Ref AnomalyTestSNSTopic
+            Condition:
+              StringEquals:
+                "AWS:SourceOwner": !Ref "AWS::AccountId"
+          - Sid: Costalerts_Statement
+            Effect: Allow
+            Principal:
+              Service: "costalerts.amazonaws.com"
+            Action: 
+              - sns:Publish
+            Resource: !Ref AnomalyTestSNSTopic
+      Topics:
+      - !Ref AnomalyTestSNSTopic
+
+  AnomalyServiceMonitor:
+    Type: "AWS::CE::AnomalyMonitor"
+    Properties:
+      MonitorName: "AllServiceMonitor"
+      MonitorType: "DIMENSIONAL"
+      MonitorDimension: "SERVICE"
+
+  AnomalySubscription:
+    Type: "AWS::CE::AnomalySubscription"
+    Properties:
+      SubscriptionName: "AnomalyServiceMonitoring"
+      Threshold: 100
+      Frequency: "IMMEDIATE"
+      MonitorArnList:
+        - !Ref AnomalyServiceMonitor
+      Subscribers:
+        - Type: "SNS"
+          Address: !Ref AnomalyTestSNSTopic
